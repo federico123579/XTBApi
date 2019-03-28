@@ -14,7 +14,7 @@ from setuptools import find_packages, setup, Command
 # Package meta-data.
 NAME = 'XTBApi'
 DESCRIPTION = 'Api for XBT trading platform'
-URL = 'https://github.com/federico123579/Foreanalyzer'
+URL = 'https://github.com/federico123579/XTBApi.git'
 EMAIL = 'federico123579@gmail.com'
 AUTHOR = 'Federico Lolli'
 REQUIRES_PYTHON = '>=3.6.0'
