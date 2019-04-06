@@ -344,9 +344,12 @@ class Client(BaseClient):
         if mode in ['buy', 'sell']:
             modes = {'buy': MODES.BUY, 'sell': MODES.SELL}
             mode = modes[mode].value
-        elif mode not in [x.value for x in MODES]:
+        # if not buy or sell (mode 0, mode 1)
+        elif mode not in [MODES.BUY.value, MODES.SELL.value]:
             raise ValueError("mode can be buy or sell")
-        response = self.trade_transaction(symbol, mode, 0, volume)
+        conversion_mode = {MODES.BUY.value: 'ask', MODES.SELL.value: 'bid'}
+        price = self.get_symbol(symbol)[conversion_mode[mode]]
+        response = self.trade_transaction(symbol, mode, 0, volume, price=price)
         self.update_trades()
         status = self.trade_transaction_status(response['order'])[
             'requestStatus']

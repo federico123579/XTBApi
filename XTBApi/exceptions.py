@@ -40,6 +40,7 @@ class SocketError(Exception):
 class TransactionRejected(Exception):
     """transaction rejected error"""
     def __init__(self, status_code):
+        self.status_code = status_code
         self.msg = "transaction rejected with error code {}".format(
             status_code)
         LOGGER.error(self.msg)
