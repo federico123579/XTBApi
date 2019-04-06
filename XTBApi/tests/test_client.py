@@ -36,27 +36,29 @@ def test_trades(_get_client):
     LOGGER.debug("passed")
 
 
-def test_trade_open(_get_client):
-    client = _get_client
-    trade_id = client.open_trade(0, 'EURUSD', 0.1)
-    LOGGER.debug(trade_id)
-    client.updates_trades()
-    LOGGER.debug("passed")
+class TestMarket:
+    @staticmethod
+    def test_trade_open(_get_client):
+        client = _get_client
+        trade_id = client.open_trade(0, 'EURUSD', 0.1)
+        LOGGER.debug(trade_id)
+        client.updates_trades()
+        LOGGER.debug("passed")
 
+    @staticmethod
+    def test_profit(_get_client):
+        client = _get_client
+        trade_id = client.get_trades()[0]
+        trade_profit = client.get_trade_profit(trade_id)
+        LOGGER.debug(trade_profit)
+        LOGGER.debug("passed")
 
-def test_profit(_get_client):
-    client = _get_client
-    trade_id = client.get_trades()[0]
-    trade_profit = client.get_trade_profit(trade_id)
-    LOGGER.debug(trade_profit)
-    LOGGER.debug("passed")
-
-
-def test_close_trade(_get_client):
-    client = _get_client
-    trade_id = client.get_trades()[0]
-    client.close_trade(trade_id)
-    LOGGER.debug("passed")
+    @staticmethod
+    def test_close_trade(_get_client):
+        client = _get_client
+        trade_id = client.get_trades()[0]
+        client.close_trade(trade_id)
+        LOGGER.debug("passed")
 
 
 # at the end of file

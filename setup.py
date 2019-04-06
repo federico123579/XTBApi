@@ -27,6 +27,7 @@ REQUIRED = [
 
 # What packages are optional?
 EXTRAS = {
+    'test': ['pytest']
     # 'fancy feature': ['django'],
 }
 
