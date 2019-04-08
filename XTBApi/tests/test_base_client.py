@@ -10,7 +10,7 @@ import time
 
 import pytest
 
-from XTBApi.api import BaseClient
+import XTBApi.api
 
 LOGGER = logging.getLogger('XTBApi.test_base_client')
 logging.getLogger('XTBApi.api').setLevel(logging.DEBUG)
@@ -22,7 +22,7 @@ DEFAULT_CURRENCY = 'EURUSD'
 
 @pytest.fixture(scope="module")
 def _get_client():
-    return BaseClient()
+    return XTBApi.api.BaseClient()
 
 
 def test_login(_get_client):
@@ -45,7 +45,7 @@ def test_get_calendar(_get_client):
 
 def test_get_chart_last_request(_get_client):
     client = _get_client
-    start = time.time() - 3600*24
+    start = time.time() - 3600 * 24
     args = [DEFAULT_CURRENCY, 1440, start]
     client.get_chart_last_request(*args)
     LOGGER.debug("passed")
@@ -53,8 +53,8 @@ def test_get_chart_last_request(_get_client):
 
 def test_get_chart_range_request(_get_client):
     client = _get_client
-    start = (time.time() - 3600*24*2)
-    end = (time.time() - 3600*24)
+    start = (time.time() - 3600 * 24 * 2)
+    end = (time.time() - 3600 * 24)
     args = [DEFAULT_CURRENCY, 1440, start, end, 0]
     client.get_chart_range_request(*args)
     LOGGER.debug("passed")
@@ -105,7 +105,7 @@ def test_symbol(_get_client):
 
 def test_get_tick_prices(_get_client):
     client = _get_client
-    args = [[DEFAULT_CURRENCY], time.time() - 3600*24, 0]
+    args = [[DEFAULT_CURRENCY], time.time() - 3600 * 24, 0]
     client.get_tick_prices(*args)
     LOGGER.debug("passed")
 
@@ -124,7 +124,7 @@ def test_get_trades(_get_client):
 
 def test_get_trades_history(_get_client):
     client = _get_client
-    args = [time.time() - 3600*24, 0]
+    args = [time.time() - 3600 * 24, 0]
     client.get_trades_history(*args)
     LOGGER.debug("passed")
 
@@ -155,7 +155,7 @@ def test_trade_transaction(_get_client):
     LOGGER.debug("passed")
 
 
-def test_trade_transaction_status(_get_client):
+def test_trade_transaction_status(_get_client: object):
     client = _get_client
     price = client.get_symbol(DEFAULT_CURRENCY)['ask']
     args = [DEFAULT_CURRENCY, 0, 0, 5.0]

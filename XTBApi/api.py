@@ -7,9 +7,9 @@ XTBApi.api
 Main module
 """
 
+import enum
 import json
 import time
-from enum import auto, Enum
 
 from websocket import create_connection
 from websocket._exceptions import WebSocketConnectionClosedException
@@ -21,12 +21,12 @@ LOGIN_TIMEOUT = 600
 MAX_TIME_INTERVAL = 0.200
 
 
-class STATUS(Enum):
-    LOGGED = auto()
-    NOT_LOGGED = auto()
+class STATUS(enum.Enum):
+    LOGGED = enum.auto()
+    NOT_LOGGED = enum.auto()
 
 
-class MODES(Enum):
+class MODES(enum.Enum):
     BUY = 0
     SELL = 1
     BUY_LIMIT = 2
@@ -37,7 +37,7 @@ class MODES(Enum):
     CREDIT = 7
 
 
-class TRANS_TYPES(Enum):
+class TRANS_TYPES(enum.Enum):
     OPEN = 0
     PENDING = 1
     CLOSE = 2
@@ -45,7 +45,7 @@ class TRANS_TYPES(Enum):
     DELETE = 4
 
 
-class PERIOD(Enum):
+class PERIOD(enum.Enum):
     ONE_MINUTE = 1
     FIVE_MINUTES = 5
     FIFTEEN_MINUTES = 15
@@ -63,7 +63,7 @@ def _get_data(command, **parameters):
     }
     if parameters:
         data['arguments'] = {}
-        for key, value in parameters.items():
+        for (key, value) in parameters.items():
             data['arguments'][key] = value
     return data
 
