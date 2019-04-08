@@ -13,6 +13,7 @@ import pytest
 from XTBApi.api import BaseClient
 
 LOGGER = logging.getLogger('XTBApi.test_base_client')
+logging.getLogger('XTBApi.api').setLevel(logging.DEBUG)
 
 USER_ID = '10649413'
 PASSWORD = '***REMOVED***'
@@ -149,16 +150,16 @@ def test_ping(_get_client):
 def test_trade_transaction(_get_client):
     client = _get_client
     price = client.get_symbol(DEFAULT_CURRENCY)['ask']
-    args = [DEFAULT_CURRENCY, 0, 0, 5.0, 0, price, 0]
-    client.trade_transaction(*args)
+    args = [DEFAULT_CURRENCY, 0, 0, 5.0]
+    client.trade_transaction(*args, price=price)
     LOGGER.debug("passed")
 
 
 def test_trade_transaction_status(_get_client):
     client = _get_client
     price = client.get_symbol(DEFAULT_CURRENCY)['ask']
-    args = [DEFAULT_CURRENCY, 0, 0, 5.0, 0, price, 0]
-    pos_id = client.trade_transaction(*args)['order']
+    args = [DEFAULT_CURRENCY, 0, 0, 5.0]
+    pos_id = client.trade_transaction(*args, price=price)['order']
     client.trade_transaction_status(pos_id)
     LOGGER.debug("passed")
 

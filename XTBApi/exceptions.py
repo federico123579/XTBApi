@@ -16,7 +16,7 @@ class CommandFailed(Exception):
     """when a command fail"""
     def __init__(self, response):
         self.msg = "command failed"
-        LOGGER.exception(response)
+        self.err_code = response['errorCode']
         super().__init__(self.msg)
 
 
