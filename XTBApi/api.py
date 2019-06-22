@@ -17,7 +17,7 @@ from websocket._exceptions import WebSocketConnectionClosedException
 from XTBApi.exceptions import *
 
 LOGGER = logging.getLogger('XTBApi.api')
-LOGIN_TIMEOUT = 600
+LOGIN_TIMEOUT = 120
 MAX_TIME_INTERVAL = 0.200
 
 
@@ -230,8 +230,8 @@ class BaseClient(object):
         data = _get_data("getProfitCalculation", closePrice=cl_price,
                          cmd=mode, openPrice=op_price, symbol=symbol,
                          volume=volume)
-        self.LOGGER.info(f"CMD: get profit calculation for {symbol} of"
-                         f"{volume} from {op_price} to {cl_price} in mode"
+        self.LOGGER.info(f"CMD: get profit calculation for {symbol} of "
+                         f"{volume} from {op_price} to {cl_price} in mode "
                          f"{mode}...")
         return self._send_command(data)
 
