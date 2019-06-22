@@ -10,7 +10,11 @@
 
 # Unit test / coverage reports
 .cache
+__pycache__/
 .pytest_cache/
 
 ### Logs
 *.log*
+
+### other files
+.DS_Store
