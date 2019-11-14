@@ -8,8 +8,11 @@ Main module
 """
 
 import enum
+import inspect
 import json
+import logging
 import time
+from datetime import datetime
 
 from websocket import create_connection
 from websocket._exceptions import WebSocketConnectionClosedException
@@ -103,14 +106,28 @@ class BaseClient(object):
         LOGGER.debug("BaseClient inited")
         self.LOGGER = logging.getLogger('XTBApi.api.BaseClient')
 
+    def _login_decorator(self, func, *args, **kwargs):
+        if self.status == STATUS.NOT_LOGGED:
+            raise NotLogged()
+        try:
+            return func(*args, **kwargs)
+        except SocketError as e:
+            LOGGER.info("re-logging in due to LOGIN_TIMEOUT gone")
+            self.login(self._login_data[0], self._login_data[1])
+            return func(*args, **kwargs)
+        except Exception as e:
+            LOGGER.warning(e)
+            self.login(self._login_data[0], self._login_data[1])
+            return func(*args, **kwargs)
+
     def _send_command(self, dict_data):
         """send command to api"""
         time_interval = time.time() - self._time_last_request
         self.LOGGER.debug("took {} s.".format(time_interval))
         if time_interval < MAX_TIME_INTERVAL:
             time.sleep(MAX_TIME_INTERVAL - time_interval)
-        self.ws.send(json.dumps(dict_data))
         try:
+            self.ws.send(json.dumps(dict_data))
             response = self.ws.recv()
         except WebSocketConnectionClosedException:
             raise SocketError()
@@ -123,17 +140,14 @@ class BaseClient(object):
             self.LOGGER.debug(res['returnData'])
             return res['returnData']
 
-    def _check_login(self):
-        if self.status == STATUS.NOT_LOGGED:
-            raise NotLogged()
-        elif time.time() - self._time_last_request >= LOGIN_TIMEOUT:
-            self.LOGGER.info("re-logging in due to LOGIN_TIMEOUT gone")
-            self.login(self._login_data[0], self._login_data[1])
+    def _send_command_with_check(self, dict_data):
+        """with check login"""
+        return self._login_decorator(self._send_command, dict_data)
 
-    def login(self, user_id, password):
+    def login(self, user_id, password, mode='demo'):
         """login command"""
         data = _get_data("login", userId=user_id, password=password)
-        self.ws = create_connection("wss://ws.xapi.pro/demo")
+        self.ws = create_connection(f"wss://ws.xtb.com/{mode}")
         response = self._send_command(data)
         self._login_data = (user_id, password)
         self.status = STATUS.LOGGED
@@ -150,22 +164,19 @@ class BaseClient(object):
 
     def get_all_symbols(self):
         """getAllSymbols command"""
-        self._check_login()
         data = _get_data("getAllSymbols")
         self.LOGGER.info("CMD: get all symbols...")
-        return self._send_command(data)
+        return self._send_command_with_check(data)
 
     def get_calendar(self):
         """getCalendar command"""
-        self._check_login()
         data = _get_data("getCalendar")
         self.LOGGER.info("CMD: get calendar...")
-        return self._send_command(data)
+        return self._send_command_with_check(data)
 
     def get_chart_last_request(self, symbol, period, start):
         """getChartLastRequest command"""
         _check_period(period)
-        self._check_login()
         args = {
             "period": period,
             "start": start * 1000,
@@ -175,11 +186,10 @@ class BaseClient(object):
         self.LOGGER.info(f"CMD: get chart last request for {symbol} of period"
                          f" {period} from {start}...")
 
-        return self._send_command(data)
+        return self._send_command_with_check(data)
 
     def get_chart_range_request(self, symbol, period, start, end, ticks):
         """getChartRangeRequest command"""
-        _check_period(period)
         if not isinstance(ticks, int):
             raise ValueError(f"ticks value {ticks} must be int")
         self._check_login()
@@ -194,115 +204,111 @@ class BaseClient(object):
         self.LOGGER.info(f"CMD: get chart range request for {symbol} of "
                          f"{period} from {start} to {end} with ticks of "
                          f"{ticks}...")
-        return self._send_command(data)
+        return self._send_command_with_check(data)
 
     def get_commission(self, symbol, volume):
         """getCommissionDef command"""
         volume = _check_volume(volume)
-        self._check_login()
         data = _get_data("getCommissionDef", symbol=symbol, volume=volume)
         self.LOGGER.info(f"CMD: get commission for {symbol} of {volume}...")
-        return self._send_command(data)
+        return self._send_command_with_check(data)
 
     def get_margin_level(self):
         """getMarginLevel command
         get margin information"""
-        self._check_login()
         data = _get_data("getMarginLevel")
         self.LOGGER.info("CMD: get margin level...")
-        return self._send_command(data)
+        return self._send_command_with_check(data)
 
     def get_margin_trade(self, symbol, volume):
         """getMarginTrade command
         get expected margin for volumes used symbol"""
         volume = _check_volume(volume)
-        self._check_login()
         data = _get_data("getMarginTrade", symbol=symbol, volume=volume)
         self.LOGGER.info(f"CMD: get margin trade for {symbol} of {volume}...")
-        return self._send_command(data)
+        return self._send_command_with_check(data)
 
     def get_profit_calculation(self, symbol, mode, volume, op_price, cl_price):
         """getProfitCalculation command
         get profit calculation for symbol with vol, mode and op, cl prices"""
         _check_mode(mode)
         volume = _check_volume(volume)
-        self._check_login()
         data = _get_data("getProfitCalculation", closePrice=cl_price,
                          cmd=mode, openPrice=op_price, symbol=symbol,
                          volume=volume)
         self.LOGGER.info(f"CMD: get profit calculation for {symbol} of "
                          f"{volume} from {op_price} to {cl_price} in mode "
                          f"{mode}...")
-        return self._send_command(data)
+        return self._send_command_with_check(data)
 
     def get_server_time(self):
         """getServerTime command"""
-        self._check_login()
         data = _get_data("getServerTime")
         self.LOGGER.info("CMD: get server time...")
-        return self._send_command(data)
+        return self._send_command_with_check(data)
 
     def get_symbol(self, symbol):
         """getSymbol command"""
-        self._check_login()
         data = _get_data("getSymbol", symbol=symbol)
         self.LOGGER.info(f"CMD: get symbol {symbol}...")
-        return self._send_command(data)
+        return self._send_command_with_check(data)
 
     def get_tick_prices(self, symbols, start, level=0):
         """getTickPrices command"""
-        self._check_login()
         data = _get_data("getTickPrices", level=level, symbols=symbols,
                          timestamp=start)
         self.LOGGER.info(f"CMD: get tick prices of {symbols} from {start} "
                          f"with level {level}...")
-        return self._send_command(data)
+        return self._send_command_with_check(data)
 
     def get_trade_records(self, trade_position_list):
         """getTradeRecords command
         takes a list of position id"""
-        self._check_login()
         data = _get_data("getTradeRecords", orders=trade_position_list)
         self.LOGGER.info(f"CMD: get trade records of len "
                          f"{len(trade_position_list)}...")
-        return self._send_command(data)
+        return self._send_command_with_check(data)
 
     def get_trades(self, opened_only=True):
         """getTrades command"""
-        self._check_login()
         data = _get_data("getTrades", openedOnly=opened_only)
         self.LOGGER.info("CMD: get trades...")
-        return self._send_command(data)
+        return self._send_command_with_check(data)
 
     def get_trades_history(self, start, end):
         """getTradesHistory command
         can take 0 as actual time"""
-        self._check_login()
         data = _get_data("getTradesHistory", end=end, start=start)
         self.LOGGER.info(f"CMD: get trades history from {start} to {end}...")
-        return self._send_command(data)
+        return self._send_command_with_check(data)
 
     def get_trading_hours(self, trade_position_list):
         """getTradingHours command"""
-        self._check_login()
+        # EDITED IN ALPHA2
         data = _get_data("getTradingHours", symbols=trade_position_list)
         self.LOGGER.info(f"CMD: get trading hours of len "
                          f"{len(trade_position_list)}...")
-        return self._send_command(data)
+        response = self._send_command_with_check(data)
+        for symbol in response:
+            for day in symbol['trading']:
+                day['fromT'] = int(day['fromT'] / 1000)
+                day['toT'] = int(day['toT'] / 1000)
+            for day in symbol['quotes']:
+                day['fromT'] = int(day['fromT'] / 1000)
+                day['toT'] = int(day['toT'] / 1000)
+        return response
 
     def get_version(self):
         """getVersion command"""
-        self._check_login()
         data = _get_data("getVersion")
         self.LOGGER.info("CMD: get version...")
-        return self._send_command(data)
+        return self._send_command_with_check(data)
 
     def ping(self):
         """ping command"""
-        self._check_login()
         data = _get_data("ping")
         self.LOGGER.info("CMD: get ping...")
-        return self._send_command(data)
+        self._send_command_with_check(data)
 
     def trade_transaction(self, symbol, mode, trans_type, volume, **kwargs):
         """tradeTransaction command"""
@@ -315,7 +321,6 @@ class BaseClient(object):
         assert all([val in accepted_values for val in kwargs.keys()])
         _check_mode(mode)  # check if mode is acceptable
         volume = _check_volume(volume)  # check if volume is valid
-        self._check_login()  # check if logged in
         info = {
             'cmd': mode,
             'symbol': symbol,
@@ -330,31 +335,31 @@ class BaseClient(object):
         self.LOGGER.info(f"CMD: trade transaction of {symbol} of mode "
                          f"{name_of_mode} with type {name_of_type} of "
                          f"{volume}...")
-        return self._send_command(data)
+        return self._send_command_with_check(data)
 
     def trade_transaction_status(self, order_id):
         """tradeTransactionStatus command"""
-        self._check_login()
         data = _get_data("tradeTransactionStatus", order=order_id)
         self.LOGGER.info(f"CMD: trade transaction status for {order_id}...")
-        return self._send_command(data)
+        return self._send_command_with_check(data)
 
     def get_user_data(self):
         """getCurrentUserData command"""
-        self._check_login()
         data = _get_data("getCurrentUserData")
         self.LOGGER.info("CMD: get user data...")
-        return self._send_command(data)
+        return self._send_command_with_check(data)
 
 
 class Transaction(object):
     def __init__(self, trans_dict):
         self._trans_dict = trans_dict
+        self.mode = {0: 'buy', 1: 'sell'}[trans_dict['cmd']]
         self.order_id = trans_dict['order']
         self.symbol = trans_dict['symbol']
         self.volume = trans_dict['volume']
         self.price = trans_dict['close_price']
         self.actual_profit = trans_dict['profit']
+        self.timestamp = trans_dict['open_time'] / 1000
         LOGGER.debug(f"Transaction {self.order_id} inited")
 
 
@@ -366,13 +371,63 @@ class Client(BaseClient):
         self.LOGGER = logging.getLogger('XTBApi.api.Client')
         self.LOGGER.info("Client inited")
 
+    def check_if_market_open(self, list_of_symbols):
+        """check if market is open for symbol in symbols"""
+        _td = datetime.today()
+        actual_tmsp = _td.hour * 3600 + _td.minute * 60 + _td.second
+        response = self.get_trading_hours(list_of_symbols)
+        market_values = {}
+        for symbol in response:
+            today_values = [day for day in symbol['trading'] if day['day'] ==
+                _td.isoweekday()][0]
+            if today_values['fromT'] <= actual_tmsp <= today_values['toT']:
+                market_values[symbol['symbol']] = True
+            else:
+                market_values[symbol['symbol']] = False
+        return market_values
+
+    def get_lastn_candle_history(self, symbol, timeframe_in_seconds, number):
+        """get last n candles of timeframe"""
+        acc_tmf = [60, 300, 900, 1800, 3600, 14400, 86400, 604800, 2592000]
+        if timeframe_in_seconds not in acc_tmf:
+            raise ValueError(f"timeframe not accepted, not in "
+                             f"{', '.join([str(x) for x in acc_tmf])}")
+        sec_prior = timeframe_in_seconds * number
+        LOGGER.debug(f"sym: {symbol}, tmf: {timeframe_in_seconds},"
+                     f" {time.time() - sec_prior}")
+        res = {'rateInfos': []}
+        while len(res['rateInfos']) < number:
+            res = self.get_chart_last_request(symbol,
+                timeframe_in_seconds // 60, time.time() - sec_prior)
+            LOGGER.debug(res)
+            res['rateInfos'] = res['rateInfos'][-number:]
+            sec_prior *= 3
+        candle_history = []
+        for candle in res['rateInfos']:
+            _pr = candle['open']
+            op_pr = _pr / 10 ** res['digits']
+            cl_pr = (_pr + candle['close']) / 10 ** res['digits']
+            hg_pr = (_pr + candle['high']) / 10 ** res['digits']
+            lw_pr = (_pr + candle['low']) / 10 ** res['digits']
+            new_candle_entry = {'timestamp': candle['ctm'] / 1000, 'open':
+                op_pr, 'close': cl_pr, 'high': hg_pr, 'low': lw_pr,
+                                'volume': candle['vol']}
+            candle_history.append(new_candle_entry)
+        LOGGER.debug(candle_history)
+        return candle_history
+
     def update_trades(self):
         """update trade list"""
         trades = self.get_trades()
-        data = trades
-        for trade in data:
+        self.trade_rec.clear()
+        for trade in trades:
             obj_trans = Transaction(trade)
             self.trade_rec[obj_trans.order_id] = obj_trans
+        #values_to_del = [key for key, trad_not_listed in
+        #                 self.trade_rec.items() if trad_not_listed.order_id
+        #                 not in [x['order'] for x in trades]]
+        #for key in values_to_del:
+        #    del self.trade_rec[key]
         self.LOGGER.info(f"updated {len(self.trade_rec)} trades")
         return self.trade_rec
 
