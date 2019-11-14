@@ -95,34 +95,6 @@ def _check_volume(volume):
         return volume
 
 
-def login_class_decorator(cls):
-    for name, method in inspect.getmembers(cls):
-        if hasattr(method, "_use_check_login"):
-            LOGGER.debug(name)
-            def wrapper(clss, func):
-                clss = func.__
-                if clss.status == STATUS.NOT_LOGGED:
-                    raise NotLogged()
-                try:
-                    return func
-                except SocketError as e:
-                    LOGGER.info(
-                        "re-logging in due to LOGIN_TIMEOUT gone")
-                    clss.login(clss._login_data[0], clss._login_data[1])
-                    return func
-                #except Exception as e:
-                #    LOGGER.warning(e)
-                #finally:
-                #    clss.login(clss._login_data[0], clss._login_data[1])
-                #    return method(clss, *args, **kwargs)
-            setattr(cls, name, wrapper(cls, method))
-    return cls
-
-def check_login_dec(view):
-    view._use_check_login = True
-    return view
-
-@login_class_decorator
 class BaseClient(object):
     """main client class"""
 
