@@ -15,8 +15,8 @@ import XTBApi.api
 LOGGER = logging.getLogger('XTBApi.test_base_client')
 logging.getLogger('XTBApi.api').setLevel(logging.DEBUG)
 
-USER_ID = '10649413'
-PASSWORD = '***REMOVED***'
+USER_ID = '' #REMOVED
+PASSWORD = '' #REMOVED
 DEFAULT_CURRENCY = 'EURUSD'
 
 
