@@ -7,16 +7,14 @@ test the api client
 
 import logging
 import time
-
 import pytest
-
 import XTBApi.api
 
 LOGGER = logging.getLogger('XTBApi.test_base_client')
 logging.getLogger('XTBApi.api').setLevel(logging.DEBUG)
 
-USER_ID = '' #REMOVED
-PASSWORD = '' #REMOVED
+USER_ID = ""  # REMOVED
+PASSWORD = ""  # REMOVED
 DEFAULT_CURRENCY = 'EURUSD'
 
 
@@ -55,7 +53,7 @@ def test_get_chart_range_request(_get_client):
     client = _get_client
     start = (time.time() - 3600 * 24 * 2)
     end = (time.time() - 3600 * 24)
-    args = [DEFAULT_CURRENCY, 1440, start, end, 0]
+    args = [DEFAULT_CURRENCY, '5M', start, end, 0]
     client.get_chart_range_request(*args)
     LOGGER.debug("passed")
 
@@ -155,7 +153,7 @@ def test_trade_transaction(_get_client):
     LOGGER.debug("passed")
 
 
-def test_trade_transaction_status(_get_client: object):
+def test_trade_transaction_status(_get_client):
     client = _get_client
     price = client.get_symbol(DEFAULT_CURRENCY)['ask']
     args = [DEFAULT_CURRENCY, 0, 0, 5.0]
@@ -164,7 +162,6 @@ def test_trade_transaction_status(_get_client: object):
     LOGGER.debug("passed")
 
 
-# at the end of file
 def test_logout(_get_client):
     client = _get_client
     client.logout()

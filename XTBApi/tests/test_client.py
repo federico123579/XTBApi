@@ -6,16 +6,14 @@ test the api client
 """
 
 import logging
-
 import pytest
-
 from XTBApi.api import Client
 
 LOGGER = logging.getLogger('XTBApi.test_client')
 logging.getLogger('XTBApi.api').setLevel(logging.INFO)
 
-USERID = "" #REMOVE
-PASSWORD = "" #REMOVED
+USERID = ""  # REMOVED
+PASSWORD = ""  # REMOVED
 DEFAULT_CURRENCY = 'EURUSD'
 
 
@@ -67,7 +65,6 @@ class TestMarket:
         LOGGER.debug("passed")
 
 
-# at the end of file
 def test_logout(_get_client):
     client = _get_client
     client.logout()

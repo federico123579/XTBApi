@@ -1,6 +1,7 @@
 import logging.config
+from datetime import date
 import os.path
-
+from XTBApi.api import *
 from XTBApi.__version__ import __version__
 
 logging.config.dictConfig({
@@ -21,8 +22,7 @@ logging.config.dictConfig({
         'rotating': {
             'class': 'logging.handlers.TimedRotatingFileHandler',
             'formatter': 'deafult',
-            'filename': os.path.join(
-                os.path.dirname(__file__), 'logs/logfile.log'),
+            'filename': os.path.join(os.path.dirname(__file__), 'logs/' + str(date.today()) + '.log'),
             'when': 'midnight',
             'backupCount': 3
         }
