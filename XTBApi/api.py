@@ -310,11 +310,15 @@ class BaseClient(object):
         self.LOGGER.info("CMD: get ping...")
         self._send_command_with_check(data)
 
-    def trade_transaction(self, symbol, mode, trans_type, volume, **kwargs):
+    def trade_transaction(self, symbol, mode, trans_type, volume, stop_loss=0,
+                          take_profit=0, **kwargs):
         """tradeTransaction command"""
         # check type
         if trans_type not in [x.value for x in TRANS_TYPES]:
             raise ValueError(f"Type must be in {[x for x in trans_type]}")
+        # check sl & tp
+        stop_loss = float(stop_loss)
+        take_profit = float(take_profit)
         # check kwargs
         accepted_values = ['order', 'price', 'expiration', 'customComment',
                            'offset', 'sl', 'tp']
@@ -325,7 +329,9 @@ class BaseClient(object):
             'cmd': mode,
             'symbol': symbol,
             'type': trans_type,
-            'volume': volume
+            'volume': volume,
+            'sl': stop_loss,
+            'tp': take_profit
         }
         info.update(kwargs)  # update with kwargs parameters
         data = _get_data("tradeTransaction", tradeTransInfo=info)
