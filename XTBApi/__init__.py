@@ -2,6 +2,7 @@ import logging.config
 from datetime import date
 import os.path
 from XTBApi.api import *
+from XTBApi.exceptions import *
 from XTBApi.__version__ import __version__
 
 logging.config.dictConfig({

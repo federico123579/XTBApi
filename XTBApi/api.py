@@ -371,9 +371,9 @@ class Client(BaseClient):
         if volume < symbol_info['lotMin'] or volume > symbol_info['lotMax']:
             raise ValueError(f"Volume must be between {symbol_info['lotMin']} and {symbol_info['lotMax']}")
         if sl:
-            sl = round(price[mode] * (1 - (-1) ** mode * (sl - spread) * leverage), symbol_info['precision'])
+            sl = round(price[mode] * (1 - (-1) ** mode * sl * leverage), symbol_info['precision'])
         if tp:
-            tp = round(price[mode] * (1 + (-1) ** mode * (tp + spread) * leverage), symbol_info['precision'])
+            tp = round(price[mode] * (1 + (-1) ** mode * tp * leverage), symbol_info['precision'])
         LOGGER.info(f"Opening trade of {symbol} (Volume: {volume}, Mode: {mode})")
         response = self.trade_transaction(symbol, mode, 0, volume, price=price[mode], sl=sl, tp=tp)
         self.update_trades()

@@ -22,7 +22,7 @@ VERSION = None
 
 # What packages are required for this module to be executed?
 REQUIRED = [
-    'websocket_client'
+    'websocket_client', 'pandas', 'matplotlib', 'numpy'
 ]
 
 # What packages are optional?
