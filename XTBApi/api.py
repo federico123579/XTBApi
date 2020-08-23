@@ -550,16 +550,17 @@ class Client(BaseClient):
         for trade_id in trade_ids:
             self._close_trade_only(trade_id)
 
-    def set_trailing_stop(self, order_id):
-        """set trailing stop given an order"""
-        trade = self.trade_rec[order_id]
-        if trade.mode == 'buy':
-            md = "SELL_STOP"
-        elif trade.mode == "sell":
-            md = "BUY_STOP"
-        self.LOGGER.debug(f"setting a {md} loss on {order_id}")
-        response = self.trade_transaction( #TODO: edit trade_transaction accept
-                                           # other modes)
+#    def set_trailing_stop(self, order_id):
+#        """set trailing stop given an order"""
+#        trade = self.trade_rec[order_id]
+#        if trade.mode == 'buy':
+#            md = "SELL_STOP"
+#        elif trade.mode == "sell":
+#            md = "BUY_STOP"
+#        self.LOGGER.debug(f"setting a {md} loss on {order_id}")
+#        response = self.trade_transaction() #TODO: edit trade_transaction accept
+#                                           # other modes
+#        return response
 
 
 
