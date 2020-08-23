@@ -15,7 +15,7 @@ import time
 from datetime import datetime
 
 from websocket import create_connection
-from websocket._exceptions import WebSocketConnectionClosedException
+from websocket._exceptions import WebSocketConnectionClosedException, WebSocketAddressException
 
 from XTBApi.exceptions import *
 
@@ -113,11 +113,11 @@ class BaseClient(object):
             return func(*args, **kwargs)
         except SocketError as e:
             LOGGER.info("re-logging in due to LOGIN_TIMEOUT gone")
-            self.login(self._login_data[0], self._login_data[1])
+            self.login(self._login_data[0], self._login_data[1], self._login_data[2])
             return func(*args, **kwargs)
         except Exception as e:
             LOGGER.warning(e)
-            self.login(self._login_data[0], self._login_data[1])
+            self.login(self._login_data[0], self._login_data[1], self._login_data[2])
             return func(*args, **kwargs)
 
     def _send_command(self, dict_data):
@@ -136,7 +136,7 @@ class BaseClient(object):
         if res['status'] is False:
             raise CommandFailed(res)
         if 'returnData' in res.keys():
-            self.LOGGER.info("CMD: done")
+            self.LOGGER.debug("CMD: done")
             self.LOGGER.debug(res['returnData'])
             return res['returnData']
 
@@ -147,9 +147,13 @@ class BaseClient(object):
     def login(self, user_id, password, mode='demo'):
         """login command"""
         data = _get_data("login", userId=user_id, password=password)
-        self.ws = create_connection(f"wss://ws.xtb.com/{mode}")
+        try:
+            self.ws = create_connection(f"wss://ws.xtb.com/{mode}")
+        except WebSocketAddressException:
+            self.LOGGER.error("not connected - WebSocketAddressException caught")
+            raise NoInternetConnection()
         response = self._send_command(data)
-        self._login_data = (user_id, password)
+        self._login_data = (user_id, password, mode)
         self.status = STATUS.LOGGED
         self.LOGGER.info("CMD: login...")
         return response
@@ -192,7 +196,6 @@ class BaseClient(object):
         """getChartRangeRequest command"""
         if not isinstance(ticks, int):
             raise ValueError(f"ticks value {ticks} must be int")
-        self._check_login()
         args = {
             "end": end * 1000,
             "period": period,
@@ -361,6 +364,7 @@ class Transaction(object):
         self._trans_dict = trans_dict
         self.mode = {0: 'buy', 1: 'sell'}[trans_dict['cmd']]
         self.order_id = trans_dict['order']
+        self.opentrade_id = trans_dict['order2']
         self.symbol = trans_dict['symbol']
         self.volume = trans_dict['volume']
         self.price = trans_dict['close_price']

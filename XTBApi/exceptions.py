@@ -12,6 +12,13 @@ import logging
 LOGGER = logging.getLogger('XTBApi.exceptions')
 
 
+class NoInternetConnection(Exception):
+    """when there's a bad connection"""
+    def __init__(self):
+        self.msg = "bad internet connection"
+        super().__init__(self.msg)
+
+
 class CommandFailed(Exception):
     """when a command fail"""
     def __init__(self, response):
