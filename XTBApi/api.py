@@ -389,7 +389,12 @@ class Client(BaseClient):
         market_values = {}
         for symbol in response:
             today_values = [day for day in symbol['trading'] if day['day'] ==
-                _td.isoweekday()][0]
+                _td.isoweekday()]
+            if len(today_values) == 0: # check if day is present
+                market_values[symbol['symbol']] = False
+                continue
+            else: # time is also present
+                today_values = today_values[0]
             if today_values['fromT'] <= actual_tmsp <= today_values['toT']:
                 market_values[symbol['symbol']] = True
             else:
@@ -425,6 +430,41 @@ class Client(BaseClient):
             candle_history.append(new_candle_entry)
         LOGGER.debug(candle_history)
         return candle_history
+    
+    def get_time_to_market_open(self, list_of_symbols):
+        """get time remaining until market opens for a list of symbols"""
+        LOGGER.debug("checking time remaing till market opens")
+        _td = datetime.today()
+        actual_tmsp = _td.hour * 3600 + _td.minute * 60 + _td.second
+        response = self.get_trading_hours(list_of_symbols)
+        market_times = {}
+        for symbol in response:
+            # found day
+            oraries = {day['day']: day for day in symbol['trading']}
+            days_present = [day['day'] for day in symbol['trading']]
+            if len(days_present) == 0:
+                raise Exception("market permanently closed")
+            if _td.isoweekday() in days_present:
+                open_day = oraries[_td.isoweekday()]
+                market_times[symbol['symbol']] = 0
+            else: # find next day
+                days_to_add = 1
+                while True:
+                    day = _td.isoweekday() + days_to_add
+                    if day > 7: # reset to week start
+                        day -= 7
+                    if day not in days_present:
+                        continue # check next day
+                    else: # set days in seconds and add to market_times
+                        open_day = oraries[day]
+                        market_times[symbol['symbol']] = 60*60*24*days_to_add
+                        break
+                    days_to_add += 1
+            if open_day['fromT'] <= actual_tmsp <= open_day['toT']:
+                market_times[symbol['symbol']] += 0
+            else:
+                market_times[symbol['symbol']] += open_day['fromT'] - actual_tmsp
+        return market_times
 
     def update_trades(self):
         """update trade list"""
