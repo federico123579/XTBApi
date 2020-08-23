@@ -364,7 +364,6 @@ class Client(BaseClient):
             raise ValueError("Mode can only be buy or sell")
         symbol_info = self.get_symbol(symbol)
         price = {0: symbol_info['ask'], 1: symbol_info['bid']}
-        spread = price[0] - price[1]
         leverage = symbol_info['leverage'] / 100
         if margin:
             volume = round(margin / (symbol_info['contractSize'] * leverage), 2)
