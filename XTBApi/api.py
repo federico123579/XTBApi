@@ -192,7 +192,6 @@ class BaseClient(object):
         """getChartRangeRequest command"""
         if not isinstance(ticks, int):
             raise ValueError(f"ticks value {ticks} must be int")
-        self._check_login()
         args = {
             "end": end * 1000,
             "period": period,
