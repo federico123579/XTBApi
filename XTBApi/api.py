@@ -98,9 +98,12 @@ def _check_volume(volume):
 class BaseClient(object):
     """main client class"""
 
+    VALID_MODES = ["demo", "demoStream", "real", "realStream"]
+
     def __init__(self):
         self.ws = None
         self._login_data = None
+        self._mode = None
         self._time_last_request = time.time() - MAX_TIME_INTERVAL
         self.status = STATUS.NOT_LOGGED
         LOGGER.debug("BaseClient inited")
@@ -113,11 +116,11 @@ class BaseClient(object):
             return func(*args, **kwargs)
         except SocketError as e:
             LOGGER.info("re-logging in due to LOGIN_TIMEOUT gone")
-            self.login(self._login_data[0], self._login_data[1])
+            self.login(self._login_data[0], self._login_data[1], self._mode)
             return func(*args, **kwargs)
         except Exception as e:
             LOGGER.warning(e)
-            self.login(self._login_data[0], self._login_data[1])
+            self.login(self._login_data[0], self._login_data[1], self._mode)
             return func(*args, **kwargs)
 
     def _send_command(self, dict_data):
@@ -146,10 +149,13 @@ class BaseClient(object):
 
     def login(self, user_id, password, mode='demo'):
         """login command"""
+        if mode not in self.VALID_MODES:
+            raise Exception("Invalid mode: {}".format(mode))
         data = _get_data("login", userId=user_id, password=password)
         self.ws = create_connection(f"wss://ws.xtb.com/{mode}")
         response = self._send_command(data)
         self._login_data = (user_id, password)
+        self._mode = mode
         self.status = STATUS.LOGGED
         self.LOGGER.info("CMD: login...")
         return response
