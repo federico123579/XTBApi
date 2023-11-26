@@ -10,7 +10,7 @@ Main module
 import enum
 import inspect
 import json
-import logging
+# import logging
 import time
 from datetime import datetime
 
@@ -19,7 +19,7 @@ from websocket._exceptions import WebSocketConnectionClosedException
 
 from XTBApi.exceptions import *
 
-LOGGER = logging.getLogger('XTBApi.api')
+LOGGER = logging.getLogger() #logging.getLogger('XTBApi.api')
 LOGIN_TIMEOUT = 120
 MAX_TIME_INTERVAL = 0.200
 
@@ -310,15 +310,11 @@ class BaseClient(object):
         self.LOGGER.info("CMD: get ping...")
         self._send_command_with_check(data)
 
-    def trade_transaction(self, symbol, mode, trans_type, volume, stop_loss=0,
-                          take_profit=0, **kwargs):
+    def trade_transaction(self, symbol, mode, trans_type, volume, **kwargs):
         """tradeTransaction command"""
         # check type
         if trans_type not in [x.value for x in TRANS_TYPES]:
             raise ValueError(f"Type must be in {[x for x in trans_type]}")
-        # check sl & tp
-        stop_loss = float(stop_loss)
-        take_profit = float(take_profit)
         # check kwargs
         accepted_values = ['order', 'price', 'expiration', 'customComment',
                            'offset', 'sl', 'tp']
@@ -329,9 +325,7 @@ class BaseClient(object):
             'cmd': mode,
             'symbol': symbol,
             'type': trans_type,
-            'volume': volume,
-            'sl': stop_loss,
-            'tp': take_profit
+            'volume': volume
         }
         info.update(kwargs)  # update with kwargs parameters
         data = _get_data("tradeTransaction", tradeTransInfo=info)
@@ -359,14 +353,14 @@ class BaseClient(object):
 class Transaction(object):
     def __init__(self, trans_dict):
         self._trans_dict = trans_dict
-        self.mode = {0: 'buy', 1: 'sell'}[trans_dict['cmd']]
+        self.mode = {0: 'buy', 1: 'sell', 2: 'buy_limit', 3: 'sell_limit'}[trans_dict['cmd']]
         self.order_id = trans_dict['order']
         self.symbol = trans_dict['symbol']
         self.volume = trans_dict['volume']
         self.price = trans_dict['close_price']
         self.actual_profit = trans_dict['profit']
         self.timestamp = trans_dict['open_time'] / 1000
-        LOGGER.debug(f"Transaction {self.order_id} inited")
+        # LOGGER.debug(f"Transaction {self.order_id} inited")
 
 
 class Client(BaseClient):
@@ -444,7 +438,7 @@ class Client(BaseClient):
         self.LOGGER.info(f"got trade profit of {profit}")
         return profit
 
-    def open_trade(self, mode, symbol, volume):
+    def open_trade(self, mode, symbol, dolars =0, custom_Messege ="", tp_per = 0.05, sl_per= 0.05, order_margin_per = 0, expiration_stamp = 0):
         """open trade transaction"""
         if mode in [MODES.BUY.value, MODES.SELL.value]:
             mode = [x for x in MODES if x.value == mode][0]
@@ -453,20 +447,100 @@ class Client(BaseClient):
             mode = modes[mode]
         else:
             raise ValueError("mode can be buy or sell")
-        mode_name = mode.name
-        mode = mode.value
-        self.LOGGER.debug(f"opening trade of {symbol} of {volume} with "
-                          f"{mode_name}")
-        conversion_mode = {MODES.BUY.value: 'ask', MODES.SELL.value: 'bid'}
-        price = self.get_symbol(symbol)[conversion_mode[mode]]
-        response = self.trade_transaction(symbol, mode, 0, volume, price=price)
-        self.update_trades()
-        status = self.trade_transaction_status(response['order'])[
-            'requestStatus']
-        self.LOGGER.debug(f"open_trade completed with status of {status}")
+
+        price, price_2 = self.get_prices_operate(mode, symbol)
+
+        if order_margin_per != 0:
+            # https://www.xtb.com/int/education/xstation-5-pending-orders
+            mode, mode_name = self.change_to_order_type_mode(mode.name)
+        else:
+            mode_name = mode.name
+            mode = mode.value
+
+        self.LOGGER.debug(f"opening trade of {symbol} of Dolars: {dolars} with {mode_name}  Expiration: {datetime.fromtimestamp(expiration_stamp/1000) }")
+        price = round(price * (1 + order_margin_per) , 2) #No mas de 3 decimales
+
+        if dolars != 0:
+            round_value = 0
+            if len(str(int(price))) >= 4:#para valores muy grandes como el bitcoin
+                round_value = 2
+            volumen = round((dolars / price) , round_value)
+            if 1 > volumen and ".US" in symbol:
+                self.LOGGER.warning(f"Volume cannot be less than 1 in Stocks ,symbol:  {symbol} ")
+                volumen = 1
+
+        if dolars <= 0:
+            raise ValueError(f"The value in dollars is lower than expected :{dolars}")
+        sl, tp = self.get_tp_sl(mode, price, sl_per, tp_per)
+
+        # trans_type = TRANS_TYPES.PENDING.value
+
+        response = self.trade_transaction(symbol, mode, trans_type = 0,volume = volumen, price=price,
+                                          customComment=custom_Messege,tp=tp, sl=sl, expiration = expiration_stamp  )
+        # response = self.trade_transaction(symbol, MODES.SELL_LIMIT.value, 0, volume=volumen_with_dolars, price=price,customComment=custom_Messege, tp=tp, sl=sl)
+        status, status_messg = self.manage_response(expiration_stamp, response)
+        if status_messg == 'Invalid prices(limit)':
+            response = self.trade_transaction(symbol, mode, trans_type=0, volume=volumen, price=price_2,customComment=custom_Messege, tp=tp, sl=sl, expiration=expiration_stamp)
+            status, status_messg = self.manage_response(expiration_stamp, response)
+            price = price_2
+        if status_messg == 'Invalid s/l or t/p price':
+            sl, tp = self.get_tp_sl(mode, price, sl_per+ 0.012, tp_per+ 0.012)
+            response = self.trade_transaction(symbol, mode, trans_type=0, volume=volumen, price=price,customComment=custom_Messege, tp=tp, sl=sl, expiration=expiration_stamp)
+            status, status_messg = self.manage_response(expiration_stamp, response)
+        if status_messg == 'SL/TP order not supported' or status_messg == 'Short selling not available':
+            print('FAIL. opening trade of '+symbol+' Message: '+status_messg+' Stock: '+ symbol + " ")
+            return response
+
+
+        #'Instrument is quoted in close only mode' FAIL 100%      'Instrument is quoted in close only mode'
         if status != 3:
-            raise TransactionRejected(status)
+            self.LOGGER.debug(f"FAIL. opening trade of {symbol} Message: {status_messg} of Dolars: {dolars} with {mode_name} Expiration: {datetime.fromtimestamp(expiration_stamp / 1000)}")
+            raise TransactionRejected(status + " Message : "+ status_messg + ' Stock '+symbol+ " Volumne: "+str(volumen))
+        else:
+            self.LOGGER.debug(f"Successfully. opening trade of {symbol} of Dolars: {dolars} with {mode_name} Expiration: {datetime.fromtimestamp(expiration_stamp/1000)}")
         return response
+
+    def get_tp_sl(self, mode, price, sl_per, tp_per):
+        if mode == MODES.BUY.value or mode == MODES.BUY_LIMIT.value:
+            tp = round(price * (1 + tp_per), 2)
+            sl = round(price * (1 - sl_per), 2)
+        elif mode == MODES.SELL.value or mode == MODES.SELL_LIMIT.value:
+            sl = round(price * (1 + sl_per), 2)
+            tp = round(price * (1 - tp_per), 2)
+        return sl, tp
+
+    def get_prices_operate(self, mode, symbol):
+        conversion_mode = {MODES.BUY.value: 'ask', MODES.SELL.value: 'bid'}
+        symbol_info = self.get_symbol(symbol)
+        price = symbol_info[conversion_mode[mode.value]]
+        conversion_mode_2 = {MODES.BUY.value: 'low', MODES.SELL.value: 'high'}
+        price_2 = symbol_info[conversion_mode_2[mode.value]]
+
+        FACTOR_PRICE_2 = 0.008
+        if mode == MODES.BUY or mode == MODES.BUY_LIMIT:
+            price_2 = round(price_2 * (1 - FACTOR_PRICE_2), 2)
+        elif mode == MODES.SELL or mode == MODES.SELL_LIMIT:
+            price_2 = round(price_2 * (1 + FACTOR_PRICE_2), 2)
+
+        return price, price_2
+
+    def manage_response(self, expiration_stamp, response):
+        self.update_trades()
+        status_rep = self.trade_transaction_status(response['order'])
+        status = status_rep['requestStatus']
+        status_messg = status_rep['message']
+        self.LOGGER.debug(
+            f"open_trade completed with status of {status} Message: {status_messg} Expiration: {datetime.fromtimestamp(expiration_stamp / 1000)}")
+        return status, status_messg
+
+    def change_to_order_type_mode(self, mode_name):
+        if mode_name == MODES.BUY.name:
+            mode_name = MODES.BUY_LIMIT.name
+            mode = MODES.BUY_LIMIT.value
+        elif mode_name == MODES.SELL.name:
+            mode_name = MODES.SELL_LIMIT.name
+            mode = MODES.SELL_LIMIT.value
+        return mode, mode_name
 
     def _close_trade_only(self, order_id):
         """faster but less secure"""

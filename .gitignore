@@ -18,3 +18,4 @@ __pycache__/
 
 ### other files
 .DS_Store
+trader.py
